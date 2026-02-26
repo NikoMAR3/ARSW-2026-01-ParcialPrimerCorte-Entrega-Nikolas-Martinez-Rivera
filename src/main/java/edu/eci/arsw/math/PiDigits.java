@@ -1,5 +1,11 @@
 package edu.eci.arsw.math;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 ///  <summary>
 ///  An implementation of the Bailey-Borwein-Plouffe formula for calculating hexadecimal
 ///  digits of pi.
@@ -19,6 +25,8 @@ public class PiDigits {
      * @return An array containing the hexadecimal digits.
      */
     public static byte[] getDigits(int start, int count) {
+
+
         if (start < 0) {
             throw new RuntimeException("Invalid Interval");
         }
@@ -46,6 +54,72 @@ public class PiDigits {
 
         return digits;
     }
+
+
+    /**
+     * Returns a range of hexadecimal digits of pi.
+     * @param start The starting location of the range.
+     * @param count The number of digits to return
+     * @return An array containing the hexadecimal digits.
+     */
+    public static byte[] getDigits(int threadsNumber, int start, int count) {
+
+        if (start < 0) {
+            throw new RuntimeException("Invalid Interval");
+        }
+
+        if (count < 0) {
+            throw new RuntimeException("Invalid Interval");
+        }
+
+        if (count - start < 0) {
+            throw new RuntimeException("Invalid Interval");
+        }
+
+        int threadStart;
+        int threadEnd;
+        int digitsQuantity;
+
+        List<Thread> threadInstances = new ArrayList();
+        Map<Integer,byte[]> answer = new ConcurrentHashMap();
+
+        digitsQuantity = count - start;
+
+        for(int i = 0; i < threadsNumber; i++){
+            threadStart = (i*digitsQuantity/3)+1;
+            if(i == 1){
+                threadStart -= 1;
+            }
+            threadEnd = digitsQuantity - (i*digitsQuantity/3);
+            threadInstances.add(new PiThread(i,threadStart,threadEnd,answer));
+        }
+        for(int i = 0; i < threadsNumber; i++){
+            threadInstances.get(i).start();
+        }
+        for(int i = 0; i < threadsNumber; i++){
+            try {
+                threadInstances.get(i).join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        byte[] returnAnswer = new byte[0];
+
+        List<byte[]> finalAnswer = (List) answer.values().stream().collect(Collectors.toList());
+
+        int bytesIndex = 0;
+
+        for(int i=0; i < finalAnswer.size(); i++){
+            for(int j=0; i < finalAnswer.get(i).length;j++){
+                returnAnswer[bytesIndex] = finalAnswer.get(i)[j];
+                bytesIndex++;
+            }
+        }
+
+        return returnAnswer;
+    }
+
 
     /// <summary>
     /// Returns the sum of 16^(n - k)/(8 * k + m) from 0 to k.
